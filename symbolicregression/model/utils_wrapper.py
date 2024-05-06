@@ -74,12 +74,15 @@ class Scaler(ABC):
         log(logging=logging, text=f'Starting with prefix of length {len(prefix)}')
         counter = 0
         while idx < len(prefix):
-            log(logging=logging, text=f'[Counter {counter} / idx {idx}]')
+            log(logging=logging, text=f'[Counter {counter} / idx {idx}] length prefix len(prefix)')
             counter += 1
             if prefix[idx].startswith("x_"):
                 log(logging=logging, text=f'Substituting {prefix[idx]}')
                 k = int(prefix[idx][-1])
                 if k>=len(a): 
+                    log(f'prefix[idx]={prefix[idx]}, k={k} and a={a}')
+                    print(f'x_k is chosen with k greater than the number of variables. This seems to be a bug and should not happen?')
+                    idx += 1
                     continue
                 a_k, b_k = str(a[k]), str(b[k])
                 prefix_to_add = ["add", b_k, "mul", a_k, prefix[idx]]
