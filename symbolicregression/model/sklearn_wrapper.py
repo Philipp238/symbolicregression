@@ -49,6 +49,8 @@ def exchange_node_values(tree, dico):
         new_tree.replace_node_value(old, new)
     return new_tree
 
+
+
 class SymbolicTransformerRegressor(BaseEstimator):
 
     def __init__(self,
@@ -57,7 +59,8 @@ class SymbolicTransformerRegressor(BaseEstimator):
                 max_number_bags=-1,
                 stop_refinement_after=1,
                 n_trees_to_refine=1,
-                rescale=True
+                rescale=True,
+                logging=None
                 ):
 
         self.max_input_points = max_input_points
@@ -66,11 +69,16 @@ class SymbolicTransformerRegressor(BaseEstimator):
         self.stop_refinement_after = stop_refinement_after
         self.n_trees_to_refine = n_trees_to_refine
         self.rescale = rescale
+        self.logging = logging
 
     def set_args(self, args={}):
         for arg, val in args.items():
             assert hasattr(self, arg), "{} arg does not exist".format(arg)
             setattr(self, arg, val)
+
+    def log(self, text):
+        if not (self.logging is None):
+            self.logging.info(text)
 
     def fit(
         self,
@@ -78,6 +86,8 @@ class SymbolicTransformerRegressor(BaseEstimator):
         Y,
         verbose=False
     ):
+        self.log('Start training.')
+
         self.start_fit = time.time()
 
         if not isinstance(X, list):
@@ -89,6 +99,8 @@ class SymbolicTransformerRegressor(BaseEstimator):
         for i in range(n_datasets):
             self.top_k_features[i] = get_top_k_features(X[i], Y[i], k=self.model.env.params.max_input_dimension)
             X[i] = X[i][:, self.top_k_features[i]]
+        
+        self.log('Finished computing the top k features.')
     
         scaler = utils_wrapper.StandardScaler() if self.rescale else None
         scale_params = {}
@@ -99,6 +111,8 @@ class SymbolicTransformerRegressor(BaseEstimator):
                 scale_params[i]=scaler.get_params()
         else:
             scaled_X = X
+
+        self.log('Finished scaling.')
 
         inputs, inputs_ids = [], []
         for seq_id in range(len(scaled_X)):
@@ -115,9 +129,13 @@ class SymbolicTransformerRegressor(BaseEstimator):
             inputs = inputs[:self.max_number_bags]
             inputs_ids = inputs_ids[:self.max_number_bags]
 
+        self.log('Finished creating the bags (for bagging).')
+
         forward_time=time.time()
         outputs = self.model(inputs)  ##Forward transformer: returns predicted functions
         if verbose: print("Finished forward in {} secs".format(time.time()-forward_time))
+
+        self.log('Finished forward.')
 
         candidates = defaultdict(list)
         assert len(inputs) == len(outputs), "Problem with inputs and outputs"
@@ -126,6 +144,8 @@ class SymbolicTransformerRegressor(BaseEstimator):
             candidate = outputs[i]
             candidates[input_id].extend(candidate)
         assert len(candidates.keys())==n_datasets
+        
+        self.log('Finished concatenating candidates.')
             
         self.tree = {}
         for input_id, candidates_id in candidates.items():
@@ -140,6 +160,9 @@ class SymbolicTransformerRegressor(BaseEstimator):
                 else: 
                     refined_candidates[i]["predicted_tree"]=candidate["predicted_tree"]
             self.tree[input_id] = refined_candidates
+
+        self.log('Finished refining the candidates and, thus, the whole prediction.')
+
 
     @torch.no_grad()
     def evaluate_tree(self, tree, X, y, metric):
@@ -172,8 +195,12 @@ class SymbolicTransformerRegressor(BaseEstimator):
             if "CONSTANT" in candidate_constants:
                 candidates[i] = self.model.env.wrap_equation_floats(candidate_skeleton, np.random.randn(len(candidate_constants)))
 
+        self.log(f'Finished generating the candidate skeletons.')
+        
         candidates = [{"refinement_type": "NoRef", "predicted_tree": candidate, "time": time.time()-self.start_fit} for candidate in candidates]
         candidates = self.order_candidates(X, y, candidates, metric="_mse", verbose=verbose)
+
+        self.log(f'Finished ordering the candidates.')
 
         ## REMOVE SKELETON DUPLICATAS
         skeleton_candidates, candidates_to_remove = {}, []
@@ -216,6 +243,8 @@ class SymbolicTransformerRegressor(BaseEstimator):
                         })            
         candidates.extend(refined_candidates)  
         candidates = self.order_candidates(X, y, candidates, metric="r2")
+
+        self.log(f'Finished refining all candidates.')
 
         for candidate in candidates:
             if "time" not in candidate:
