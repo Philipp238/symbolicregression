@@ -71,8 +71,11 @@ class Scaler(ABC):
     def rescale_function(self, env, tree, a, b, logging=None):
         prefix = tree.prefix().split(",")
         idx = 0
+        log(logging=logging, text=f'Starting with prefix of length {len(prefix)}')
+        counter = 0
         while idx < len(prefix):
-            log(logging=logging, text=f'Starting with prefix of length {len(prefix)}')
+            log(logging=logging, text=f'[Counter {counter} / idx {idx}]')
+            counter += 1
             if prefix[idx].startswith("x_"):
                 log(logging=logging, text=f'Substituting {prefix[idx]}')
                 k = int(prefix[idx][-1])
