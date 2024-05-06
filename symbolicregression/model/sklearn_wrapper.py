@@ -8,6 +8,12 @@ import math, time, copy
 import numpy as np
 import torch
 from collections import defaultdict
+
+import os
+print(f'cwd: {os.getcwd()}')
+import sys
+sys.path.append(os.getcwd())
+
 from symbolicregression.metrics import compute_metrics
 from sklearn.base import BaseEstimator
 import symbolicregression.model.utils_wrapper as utils_wrapper
@@ -274,7 +280,7 @@ class SymbolicTransformerRegressor(BaseEstimator):
 
         res = []
         if batch:
-            tree = self.retrieve_tree(refinement_type=refinement_type, tree_idx = -1)
+            tree = self.retrieve_tree(refinement_type=refinement_type, dataset_idx = -1)
             for tree_idx in range(len(tree)):
                 X_idx = X[tree_idx]
                 if tree[tree_idx] is None: 
@@ -286,7 +292,7 @@ class SymbolicTransformerRegressor(BaseEstimator):
             return res
         else:
             X_idx = X[tree_idx]
-            tree = self.retrieve_tree(refinement_type=refinement_type, tree_idx = tree_idx)
+            tree = self.retrieve_tree(refinement_type=refinement_type, dataset_idx = tree_idx)
             if tree is not None:
                 numexpr_fn = self.model.env.simplifier.tree_to_numexpr_fn(tree)
                 y = numexpr_fn(X_idx)[:,0]
