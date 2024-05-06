@@ -40,6 +40,10 @@ class TimedFun:
         self.x = x
         return self.fun_value
 
+def log(logging, text):
+    if not (logging is None):
+        logging.info(text)
+
 class Scaler(ABC):
     """
     Base class for scalers
@@ -64,11 +68,13 @@ class Scaler(ABC):
     def get_params(self):
         pass
 
-    def rescale_function(self, env, tree, a, b):
+    def rescale_function(self, env, tree, a, b, logging=None):
         prefix = tree.prefix().split(",")
         idx = 0
         while idx < len(prefix):
+            log(logging=logging, text=f'Starting with prefix of length {len(prefix)}')
             if prefix[idx].startswith("x_"):
+                log(logging=logging, text=f'Substituting {prefix[idx]}')
                 k = int(prefix[idx][-1])
                 if k>=len(a): 
                     continue
@@ -79,6 +85,7 @@ class Scaler(ABC):
             else:
                 idx+=1
                 continue
+        log(logging=logging, text=f'Finished substituting all variables')
         rescaled_tree = env.word_to_infix(prefix, is_float=False, str_array=False)
         return rescaled_tree
 
