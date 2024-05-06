@@ -100,8 +100,6 @@ class SymbolicTransformerRegressor(BaseEstimator):
             self.top_k_features[i] = get_top_k_features(X[i], Y[i], k=self.model.env.params.max_input_dimension)
             X[i] = X[i][:, self.top_k_features[i]]
         
-        self.log('Finished computing the top k features.')
-    
         scaler = utils_wrapper.StandardScaler() if self.rescale else None
         scale_params = {}
         if scaler is not None:
@@ -111,8 +109,6 @@ class SymbolicTransformerRegressor(BaseEstimator):
                 scale_params[i]=scaler.get_params()
         else:
             scaled_X = X
-
-        self.log('Finished scaling.')
 
         inputs, inputs_ids = [], []
         for seq_id in range(len(scaled_X)):
@@ -129,7 +125,6 @@ class SymbolicTransformerRegressor(BaseEstimator):
             inputs = inputs[:self.max_number_bags]
             inputs_ids = inputs_ids[:self.max_number_bags]
 
-        self.log('Finished creating the bags (for bagging).')
 
         forward_time=time.time()
         outputs = self.model(inputs)  ##Forward transformer: returns predicted functions
@@ -145,7 +140,6 @@ class SymbolicTransformerRegressor(BaseEstimator):
             candidates[input_id].extend(candidate)
         assert len(candidates.keys())==n_datasets
         
-        self.log('Finished concatenating candidates.')
             
         self.tree = {}
         for input_id, candidates_id in candidates.items():
@@ -157,14 +151,11 @@ class SymbolicTransformerRegressor(BaseEstimator):
             for i,candidate in enumerate(refined_candidates):
                 if scaler is not None:
                     refined_candidates[i]["predicted_tree"]=scaler.rescale_function(self.model.env, candidate["predicted_tree"], logging=self.logging, *scale_params[input_id])
-                    self.log(f'Finished rescaling of candidate {i+1}/{len(refined_candidates)}.')
                 else: 
                     refined_candidates[i]["predicted_tree"]=candidate["predicted_tree"]
             self.tree[input_id] = refined_candidates
-            self.log('Finished rescaling of all candidates.')
 
 
-        self.log('Finished refining the candidates and, thus, the whole prediction.')
 
 
     @torch.no_grad()
